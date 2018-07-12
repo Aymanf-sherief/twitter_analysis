@@ -1,0 +1,709 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <title>twitter search</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="stylesheet" href="{{url_for('static', filename = 'bootstrap.min.css')}}">
+    <link rel="stylesheet" href="{{url_for('static', filename = 'dashboard.css')}}">
+    <script src="{{url_for('static',filename = 'jquery-3.3.1.min.js')}}"></script>
+    <script src="{{url_for('static',filename = 'html2canvas.min.js')}}"></script>
+    <script src="{{url_for('static',filename = 'concrete.min.js')}}"></script>
+
+    <script src="{{url_for('static',filename = 'zingchart.min.js')}}"></script>
+
+    <script src="{{url_for('static',filename = 'bootstrap.min.js')}}"></script>
+    <script src="{{url_for('static',filename = 'plotly-latest.min.js')}}"></script>
+    <link rel="stylesheet" href="{{url_for('static', filename = 'bootstrap-glyphicons.css')}}">
+
+    <style>
+        @media screen {
+            #printSection {
+                display: none;
+            }
+        }
+
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+
+            #printSection,
+            #printSection * {
+                visibility: visible;
+            }
+
+            #printSection {
+                position: absolute;
+                left: 0;
+                top: 0;
+            }
+        }
+
+        html {
+            font-size: 100%;
+        }
+
+        li.nav-item {
+            padding-top: 5px;
+        }
+
+        #ages_piechart {
+            min-width: 100%;
+        }
+
+        .high {
+            min-height: 10%;
+        }
+
+        #word_cloud_chart_pos,
+        #word_cloud_chart_neg {
+            height: 100%;
+            width: 100%;
+            min-height: 600px;
+            padding-top: 20px;
+        }
+
+        #dash_title {
+            margin-bottom: 20px;
+        }
+
+        #neg_top_tweets,
+        #pos_top_tweets {
+            max-height: 800px;
+            overflow-y: scroll;
+            overflow-x: hidden;
+            overflow-wrap: break-word;
+            display: inline-block;
+            width: 50%;
+            margin: 0;
+
+        }
+
+        #loader {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            z-index: 1;
+            width: 150px;
+            height: 150px;
+            margin: -75px 0 0 -75px;
+            border: 16px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 16px solid #3498db;
+            width: 120px;
+            height: 120px;
+            -webkit-animation: spin 2s linear infinite;
+            animation: spin 2s linear infinite;
+            display: none;
+        }
+
+        @-webkit-keyframes spin {
+            0% {
+                -webkit-transform: rotate(0deg);
+            }
+            100% {
+                -webkit-transform: rotate(360deg);
+            }
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+
+        .zc-ref {
+            display: none;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: row;
+        }
+
+        footer {
+            padding: 20px;
+            text-align: center;
+            font-size: 20px;
+            color: white;
+            background-color: black;
+            font-family: 'Fira Sans', sans-serif;
+
+
+        }
+
+        footer a {
+            text-decoration: none;
+            font-size: 15px;
+            padding: 10px;
+            color: white;
+        }
+    </style>
+    <script>
+        window.twttr = (function (d, s, id) {
+            var js, fjs = d.getElementsByTagName(s)[0],
+                t = window.twttr || {};
+            if (d.getElementById(id)) return t;
+            js = d.createElement(s);
+            js.id = id;
+            js.src = "https://platform.twitter.com/widgets.js";
+            fjs.parentNode.insertBefore(js, fjs);
+
+            t._e = [];
+            t.ready = function (f) {
+                t._e.push(f);
+            };
+
+            return t;
+        }(document, "script", "twitter-wjs"));
+
+
+    </script>
+
+</head>
+
+
+
+<body>
+
+    <nav class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 high">
+        <a class="navbar-brand col-sm-3 col-md-2 mr-0" href="#">
+            <span class="glyphicon glyphicon-zoom-in" aria-hidden="true"></span> Twitter Search
+        </a>
+        <input class="form-control form-control-dark w-100" type="text" placeholder="topic" aria-label="Search" id="id_topic">
+        <ul class="navbar-nav px-3">
+            <li class="nav-item text-nowrap">
+                <a class="nav-link" href="#" onclick="go()">Go!</a>
+            </li>
+        </ul>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <nav class="col-md-2 d-none d-md-block bg-light sidebar mr-0">
+                <div class="sidebar-sticky">
+                    <ul class="nav flex-column">
+                        <li class="nav-item bg-dark">
+                            <a class="nav-link active" onclick="sh_dashboard()" href="javascript:void(0);">
+                                <span data-feather="home"></span>
+                                <span class="glyphicon glyphicon-home" aria-hidden="true"></span> Dashboard
+                                <span class="sr-only">(current)</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" onclick="sh_trend()" href="javascript:void(0);">
+
+                                <span data-feather="home"></span>
+                                <span class="glyphicon glyphicon-flash" aria-hidden="true"></span> Trend
+                                <span class="sr-only">(current)</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" onclick="sh_groups()" href="javascript:void(0);">
+                                <span data-feather="home"></span>
+                                <span class="glyphicon glyphicon-tasks" aria-hidden="true"></span> Group statistics
+                                <span class="sr-only">(current)</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" onclick="sh_wordcloud()" href="javascript:void(0);">
+                                <span data-feather="home"></span>
+
+
+                                <span class="glyphicon glyphicon-cloud" aria-hidden="true"></span> Wordclouds
+                                <span class="sr-only">(current)</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" onclick="sh_timeline()" href="javascript:void(0);">
+                                <span data-feather="home"></span>
+                                <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> Timeline
+                                <span class="sr-only">(current)</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" onclick="sh_summary()" href="javascript:void(0);">
+                                <span data-feather="home"></span>
+                                <span class="glyphicon glyphicon-align-left" aria-hidden="true"></span> Summary
+                                <span class="sr-only">(current)</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" onclick="print()" download="example.html" id="downloader" href="data:text/html;charset=UTF-8,<p>asdf</p>'">
+                                <span data-feather="home"></span>
+                                <span class="glyphicon glyphicon-print" aria-hidden="true"></span> Print
+                                <span class="sr-only">(current)</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" onclick="download_tweets()" id="tweet_downloader" href="#">
+                                <span data-feather="home"></span>
+                                <span class="glyphicon glyphicon-download" aria-hidden="true"></span> Download Tweets
+                                <span class="sr-only">(current)</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+        </div>
+        <div id="loader"></div>
+        <main role="main" class="col-md-9 ml-sm-auto col-lg-10 pt-3 px-4" id="toprint">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+                <h1 class="h2" id="dash_title">Dashboard</h1>
+            </div>
+
+
+            <div class="my-4" id="word_cloud_chart_pos"></div>
+            <div class="my-4" id="word_cloud_chart_neg"></div>
+            <div class="my-4" id="time_series_chart"></div>
+            <div class="container">
+                <div class="row">
+                    <div class="alert alert-success" id="pos_top_tweets">
+
+                    </div>
+                    <div class="alert alert-danger" id="neg_top_tweets">
+
+
+
+                    </div>
+                </div>
+            </div>
+            <div class="my-4" id="ages_piechart"></div>
+            <div class="my-4" id="popularity_hist"></div>
+            <div class="my-4" id="box_plot"></div>
+            <div class="alert alert-success" id="pos_summary">
+
+            </div>
+            <div class="alert alert-danger" id="neg_summary">
+
+            </div>
+            <div>
+
+            </div>
+
+
+
+
+        </main>
+    </div>
+
+
+
+</body>
+
+
+
+
+<script>
+    document.getElementById('toprint').style.display = 'none';
+
+    function get_timeseries() {
+        var topic_string = document.getElementById("id_topic").value;
+        url = "/search/timeseries/" + topic_string;
+        $.getJSON(url, function (data) {
+            console.log(data);
+
+
+            Plotly.newPlot('time_series_chart', data, {
+                title: topic_string + ' trend over time',
+                yaxis: {
+                    tickformat: '.0f'
+                },
+
+
+            });
+            document.getElementById('toprint').style.display = 'block';
+
+
+            document.getElementById("loader").style.display = "none";
+
+        });
+    }
+
+    function get_account_ages() {
+        var topic_string = document.getElementById("id_topic").value;
+        url = "/search/group/" + topic_string;
+
+
+        $.getJSON(url, function (data) {
+
+            console.log(data);
+            var layout = {
+                "title": 'How old are accounts talking about ' + topic_string,
+
+
+                "barmode": "group",
+                "tickangle": -90,
+                "showlegend": true,
+
+
+                "xaxis": {
+                    "title": "Age group (years)",
+
+                },
+                "yaxis": {
+                    "title": "Number of users",
+                    tickformat: '.0f'
+                }
+            };
+            account_ages = data['account_ages'];
+            Plotly.newPlot('ages_piechart', account_ages, layout);
+
+            popularity_hist = data['popularity_hist'];
+            Plotly.newPlot('popularity_hist', popularity_hist,
+                { 'title': 'How many followers do accounts talking about ' + topic_string + ' have' });
+
+            box_data = data['box'];
+            Plotly.newPlot('box_plot', box_data);
+
+
+
+
+        });
+
+
+    }
+
+    function get_wordclouds() {
+
+        var topic_string = document.getElementById("id_topic").value;
+        url = "/search/wordcloud/" + topic_string;
+
+
+
+
+        $.getJSON(url, function (data) {
+            console.log(data);
+
+            var pos_wordcloud_data = data['positive_wordcloud'];
+            var neg_wordcloud_data = data['negative_wordcloud'];
+
+            var wordcloud_conf = {
+
+                "type": "wordcloud",
+
+                "options": {
+                    "style": {
+                        hoverState: {
+                            alpha: 1,
+                            backgroundColor: 'black',
+                            borderColor: 0,
+                            fontColor: 'white',
+                            textAlpha: 1,
+                        },
+                        "tooltip": {
+                            visible: true,
+                            text: '%text: %hits'
+                        }
+                    },
+                    "words": pos_wordcloud_data,
+                    colorType: 'palette',
+                    palette: ['#008000'],
+                    maxItems: 100
+                }
+
+            };
+
+            zingchart.render({
+                id: 'word_cloud_chart_pos',
+                data: wordcloud_conf,
+                height: '90%',
+                width: '100%'
+            });
+            wordcloud_conf['options']['words'] = neg_wordcloud_data;
+            wordcloud_conf['options']['palette'] = ['#E50000'];
+            zingchart.render({
+                id: 'word_cloud_chart_neg',
+                data: wordcloud_conf,
+                height: '90%',
+                width: '100%'
+            });
+
+        });
+
+    }
+
+    function get_summary() {
+        var topic_string = document.getElementById("id_topic").value;
+        url = "/search/summary/" + topic_string;
+        $.getJSON(url, function (data) {
+            console.log(data);
+
+            document.getElementById('pos_summary').innerText = data['positive_summary'];
+            document.getElementById('neg_summary').innerText = data['negative_summary'];
+        });
+
+
+
+    }
+
+    function get_top_tweets() {
+        document.getElementById('neg_top_tweets').innerHTML = "";
+        document.getElementById('pos_top_tweets').innerHTML = "";
+        var topic_string = document.getElementById("id_topic").value;
+        var url = "/search/toptweets/" + topic_string;
+        $.getJSON(url, function (data) {
+            console.log(data);
+            data['pos_tweets'].forEach(function (id) {
+                twttr.widgets.createTweet(id, document.getElementById('pos_top_tweets'));
+            });
+
+            data['neg_tweets'].forEach(function (id) {
+                twttr.widgets.createTweet(id, document.getElementById('neg_top_tweets'));
+            });
+
+
+        });
+
+        sh_dashboard();
+
+
+    }
+
+    function go() {
+        hide_all();
+        document.getElementById("loader").style.display = "inline-block";
+        document.getElementById("loader").style.position = "absolute";
+        var topic_string = document.getElementById("id_topic").value;
+        url = "/search/" + topic_string;
+        //$.getJSON(url, function (data) {
+
+        // });
+        hide_all();
+        executeAsync(get_timeseries);
+        executeAsync(get_top_tweets);
+        executeAsync(get_account_ages);
+        executeAsync(get_wordclouds);
+        executeAsync(get_summary);
+
+
+        document.getElementById('dash_title').innerText = topic_string;
+
+
+
+    }
+
+    $("#id_topic").on('keyup', function (e) {
+        if (e.keyCode == 13) {
+            go();
+        }
+    });
+
+    function hide_all() {
+
+        document.getElementById('word_cloud_chart_pos').style.display = 'none';
+        document.getElementById('word_cloud_chart_neg').style.display = 'none';
+        document.getElementById('time_series_chart').style.display = 'none';
+        document.getElementById('ages_piechart').style.display = 'none';
+        document.getElementById('popularity_hist').style.display = 'none';
+        document.getElementById('pos_top_tweets').style.display = 'none';
+        document.getElementById('neg_top_tweets').style.display = 'none';
+        document.getElementById('pos_summary').style.display = 'none';
+        document.getElementById('neg_summary').style.display = 'none';
+        document.getElementById('box_plot').style.display = 'none';
+
+
+
+
+    }
+
+    function sh_all() {
+
+        document.getElementById('word_cloud_chart_pos').style.display = '';
+        document.getElementById('word_cloud_chart_neg').style.display = '';
+        document.getElementById('time_series_chart').style.display = '';
+        document.getElementById('ages_piechart').style.display = '';
+        document.getElementById('popularity_hist').style.display = '';
+        document.getElementById('box_plot').style.display = '';
+        document.getElementById('pos_summary').style.display = '';
+        document.getElementById('neg_summary').style.display = '';
+
+
+
+    }
+
+
+    function sh_dashboard() {
+        hide_all()
+        document.getElementById('time_series_chart').style.display = '';
+        document.getElementById('pos_top_tweets').style.display = '';
+        document.getElementById('neg_top_tweets').style.display = '';
+
+    }
+
+    function sh_trend() {
+        hide_all()
+        document.getElementById('time_series_chart').style.display = '';
+
+    }
+
+    function sh_wordcloud() {
+        hide_all()
+        document.getElementById('word_cloud_chart_pos').style.display = '';
+        document.getElementById('word_cloud_chart_neg').style.display = '';
+
+    }
+
+    function sh_groups() {
+        hide_all()
+        document.getElementById('ages_piechart').style.display = '';
+        document.getElementById('popularity_hist').style.display = '';
+        document.getElementById('box_plot').style.display = '';
+
+
+
+    }
+
+    function sh_summary() {
+        hide_all()
+        document.getElementById('pos_summary').style.display = '';
+        document.getElementById('neg_summary').style.display = '';
+
+    }
+
+    function sh_timeline() {
+        hide_all();
+        document.getElementById('pos_top_tweets').style.display = '';
+        document.getElementById('neg_top_tweets').style.display = '';
+
+    }
+
+    function executeAsync(func) {
+        setTimeout(func, 0);
+    }
+
+    $(function () {
+        console.log('ready');
+
+        $('li.nav-item').click(function (e) {
+            e.preventDefault()
+
+            $that = $(this);
+
+            $that.parent().find('li').find('a').removeClass('active');
+            $that.parent().find('li').removeClass('bg-dark');
+            $that.addClass('bg-dark');
+            $that.find('a').addClass('active');
+        });
+    })
+
+
+    $(
+        function () {
+            sh_all();
+            // Hook up the print link.
+            $("#print_report")
+                .attr("href", "javascript:void( 0 )")
+                .click(
+                    function () {
+                        // Print the DIV.
+                        $("#toprint").print();
+                        // Cancel click event.
+                        return (false);
+                    }
+                )
+                ;
+        }
+    );
+
+    function print() {
+        sh_all();
+        setTimeout(function () {
+            html2canvas(document.querySelector("#toprint")).then(canvas => {
+                var scene = new Concrete.Scene();
+                scene.canvas = canvas;
+                scene.download({
+                    fileName: 'report.png'
+                });
+
+
+               
+
+                  });
+        }, 2000);
+
+    }
+
+    function download_tweets() {
+        var topic_string = document.getElementById("id_topic").value;
+        var url = "/api/select/" + topic_string + "/0";
+        $.getJSON(url, function (data) {
+
+            fileName = document.getElementById("dash_title").innerText;
+            var uri = 'data:text/json;charset=utf-8,' + JSON.stringify(data);
+
+
+
+            var link = document.createElement("a");
+            link.href = uri;
+            link.style = "visibility:hidden";
+            link.download = fileName + ".json";
+
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+    }
+
+
+
+    function JSONToCSVConvertor(JSONData, ReportTitle) {
+        console.log(JSONData);
+        ShowLabel = true;
+        var arrData = typeof JSONData != 'object' ? JSON.parse(JSONData) : JSONData;
+
+        var CSV = '';
+        CSV += ReportTitle + '\r\n\n';
+        if (ShowLabel) {
+            var row = "";
+            for (var index in arrData[0]) {
+                row += index + ',';
+            }
+
+            row = row.slice(0, -1);
+            CSV += row + '\r\n';
+        }
+        for (var i = 0; i < arrData.length; i++) {
+            var row = "";
+            for (var index in arrData[i]) {
+                row += '"' + arrData[i][index] + '",';
+            }
+
+            row.slice(0, row.length - 1);
+            CSV += row + '\r\n';
+        }
+
+        if (CSV == '') {
+            alert("Invalid data");
+            return;
+        }
+        console.log(CSV);
+        var fileName = "MyReport_";
+        fileName += ReportTitle.replace(/ /g, "_");
+
+        var uri = 'data:text/csv;charset=utf-8,' + escape(CSV);
+
+
+
+        var link = document.createElement("a");
+        link.href = uri;
+        link.style = "visibility:hidden";
+        link.download = fileName + ".csv";
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+
+</script>
+
+</html>
